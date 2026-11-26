@@ -19,9 +19,9 @@ def test_arquivo_respeita_esquema_e_valores(caminho):
     assert problemas == [], f"{caminho.name}: {problemas}"
 
 
-def test_base_de_treino_tem_as_duas_classes_em_proporcao_razoavel(base_treino):
-    proporcao_maligna = (base_treino[config.ALVO] == config.CLASSE_MALIGNA).mean()
-    assert 0.25 <= proporcao_maligna <= 0.55
+def test_base_de_treino_tem_gamma_em_proporcao_razoavel(base_treino):
+    proporcao_gamma = (base_treino[config.ALVO] == config.CLASSE_POSITIVA).mean()
+    assert 0.60 <= proporcao_gamma <= 0.70
 
 
 def test_nao_ha_vazamento_entre_treino_e_holdout(base_treino, base_holdout):
@@ -42,6 +42,13 @@ def test_validador_detecta_nulos_e_valores_negativos(base_treino):
     problemas = validar_dataframe(corrompido)
     assert any("nulos" in p for p in problemas)
     assert any("negativos" in p for p in problemas)
+
+
+def test_validador_rejeita_concentracao_fConc_acima_de_um(base_treino):
+    impossivel = base_treino.copy()
+    impossivel.loc[0, "fConc"] = 1.1
+    problemas = validar_dataframe(impossivel)
+    assert any("fConc: valor acima de 1" in p for p in problemas)
 
 
 def test_validador_detecta_esquema_diferente(base_treino):

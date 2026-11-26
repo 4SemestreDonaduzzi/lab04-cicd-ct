@@ -18,11 +18,14 @@ sys.path.insert(0, str(RAIZ / "src"))
 from mlops_demo.data import gerar_lote  # noqa: E402
 
 DESCRICAO = {
-    1: "Bug no pré-processamento: remove a última coluna. Esperado: CI falha em test_codigo.",
-    2: "Dados corrompidos na base de treino. Esperado: CI falha em test_dados.",
-    3: "Hiperparâmetro ruim (C muito pequeno). Esperado: CI falha em test_modelo (recall).",
-    4: "Lote novo com drift. Esperado: CI verde e CT dispara, retreina e o portão aprova.",
-    5: "class_weight extremo. Esperado: recall 1,0, precisão baixa, CI e portão do CT reprovam.",
+    1: "Bug no pré-processamento: remove fDist. Esperado: CI falha em test_codigo.",
+    2: "Dados MAGIC inválidos em fLength/fWidth. Esperado: CI falha em test_dados.",
+    3: "Peso moderado para gamma. Esperado: precisão abaixo de 0,80 e CI falha em test_modelo.",
+    4: (
+        "Lote MAGIC com drift em fLength, fWidth e fSize. "
+        "Esperado: CI verde, CT retreina e o portão aprova."
+    ),
+    5: "Peso alto para gamma: recall alto e precisão baixa. Esperado: CI e portão do CT reprovam.",
 }
 
 
@@ -45,14 +48,18 @@ def cenario_1() -> None:
 def cenario_2() -> None:
     caminho = RAIZ / "data" / "raw" / "base_treino.csv"
     df = pd.read_csv(caminho)
-    df.loc[0:4, "mean radius"] = None
-    df.loc[5:7, "mean area"] = -10.0
+    df.loc[0:4, "fLength"] = None
+    df.loc[5:7, "fWidth"] = -10.0
     df.to_csv(caminho, index=False)
-    print("alterado: data/raw/base_treino.csv (5 nulos em mean radius, 3 áreas negativas)")
+    print("alterado: data/raw/base_treino.csv (5 fLength nulos, 3 fWidth negativos)")
 
 
 def cenario_3() -> None:
-    _substituir(RAIZ / "params.yaml", "C: 1.0", "C: 0.00005")
+    _substituir(
+        RAIZ / "params.yaml",
+        "class_weight: balanced",
+        "class_weight: {0: 1, 1: 5}",
+    )
 
 
 def cenario_4() -> None:
@@ -61,7 +68,7 @@ def cenario_4() -> None:
 
 
 def cenario_5() -> None:
-    _substituir(RAIZ / "params.yaml", "class_weight: balanced", "class_weight: {0: 50, 1: 1}")
+    _substituir(RAIZ / "params.yaml", "class_weight: balanced", "class_weight: {0: 1, 1: 50}")
 
 
 CENARIOS = {1: cenario_1, 2: cenario_2, 3: cenario_3, 4: cenario_4, 5: cenario_5}

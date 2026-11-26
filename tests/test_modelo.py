@@ -57,12 +57,14 @@ def test_treino_e_deterministico(base_treino, params, xy_holdout):
     assert np.allclose(a, b)
 
 
-def test_modelo_consegue_memorizar_um_lote_pequeno(base_treino, params):
-    """Teste clássico de sanidade: se nem um lote pequeno é aprendido, há um bug no pipeline."""
+def test_modelo_supera_baseline_em_um_lote_pequeno(base_treino, params):
+    """No MAGIC, a regressão deve aprender além da classe majoritária em um lote pequeno."""
     pequeno = base_treino.sample(40, random_state=0)
     modelo = treinar(pequeno, params)
     X, y = separar_xy(pequeno)
-    assert (modelo.predict(X) == y).mean() >= 0.95
+    acuracia = (modelo.predict(X) == y).mean()
+    baseline = y.value_counts(normalize=True).max()
+    assert acuracia >= baseline + 0.05
 
 
 def test_probabilidades_sao_validas(modelo_atual, xy_holdout):
@@ -70,6 +72,16 @@ def test_probabilidades_sao_validas(modelo_atual, xy_holdout):
     probas = modelo_atual.predict_proba(X_te)
     assert np.all((probas >= 0) & (probas <= 1))
     assert np.allclose(probas.sum(axis=1), 1.0)
+
+
+def test_modelo_atribui_probabilidade_gamma_maior_a_eventos_gamma(modelo_atual, xy_holdout):
+    X_te, y_te = xy_holdout
+    coluna = list(modelo_atual.classes_).index(config.CLASSE_POSITIVA)
+    p_gamma = modelo_atual.predict_proba(X_te)[:, coluna]
+    rotulos = y_te.to_numpy()
+    media_gamma = p_gamma[rotulos == config.CLASSE_POSITIVA].mean()
+    media_hadron = p_gamma[rotulos != config.CLASSE_POSITIVA].mean()
+    assert media_gamma > media_hadron
 
 
 def test_invariancia_a_ruido_minimo(modelo_atual, xy_holdout):
@@ -81,13 +93,12 @@ def test_invariancia_a_ruido_minimo(modelo_atual, xy_holdout):
     assert mudou <= 0.02
 
 
-def test_direcional_tumor_maior_nao_reduz_a_chance_de_maligno(modelo_atual, xy_holdout):
-    """Teste direcional: tumor maior não pode reduzir a probabilidade média de câncer."""
+def test_direcional_fAlpha_maior_reduz_probabilidade_gamma(modelo_atual, xy_holdout):
+    """Eventos gamma apontam à origem; ângulo fAlpha maior deve reduzir sua probabilidade."""
     X_te, _ = xy_holdout
-    coluna = list(modelo_atual.classes_).index(config.CLASSE_MALIGNA)
-    maior = X_te.copy()
-    for c in config.COLUNAS_TAMANHO:
-        maior[c] = maior[c] * 1.10
+    coluna = list(modelo_atual.classes_).index(config.CLASSE_POSITIVA)
+    maior_alpha = X_te.copy()
+    maior_alpha["fAlpha"] = np.minimum(maior_alpha["fAlpha"] + 5.0, 90.0)
     antes = modelo_atual.predict_proba(X_te)[:, coluna].mean()
-    depois = modelo_atual.predict_proba(maior)[:, coluna].mean()
-    assert depois >= antes
+    depois = modelo_atual.predict_proba(maior_alpha)[:, coluna].mean()
+    assert depois < antes

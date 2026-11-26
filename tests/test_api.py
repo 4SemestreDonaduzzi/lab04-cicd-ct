@@ -52,3 +52,12 @@ def test_predict_acerta_um_caso_gamma_e_um_hadron_claros(base_holdout, campeao):
     for indice, esperado in ((i_gamma, "gamma"), (i_hadron, "hadron")):
         resposta = cliente.post("/predict", json={"atributos": X.iloc[indice].tolist()})
         assert resposta.json()["classe"] == esperado
+
+
+def test_predict_devolve_probabilidade_da_coluna_positiva_gamma(base_holdout, campeao):
+    X = base_holdout[config.FEATURES].iloc[[0]]
+    coluna = list(campeao.classes_).index(config.CLASSE_POSITIVA)
+    esperado = round(float(campeao.predict_proba(X)[0, coluna]), 4)
+    resposta = cliente.post("/predict", json={"atributos": X.iloc[0].tolist()})
+    assert resposta.status_code == 200
+    assert resposta.json()["probabilidade_gamma"] == pytest.approx(esperado)
