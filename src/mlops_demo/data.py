@@ -9,22 +9,30 @@ Uso na linha de comando:
 import sys
 
 import pandas as pd
-from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 
 from mlops_demo import config
 
 SEMENTE_DADOS = 7  # divisão fixa da base: não mude, ou o campeão perde a referência
-N_TREINO_BASE = 300
-N_HOLDOUT_BASE = 100
+N_TREINO_BASE = 3000
+N_HOLDOUT_BASE = 1000
 
 
 def carregar_dataset_completo() -> pd.DataFrame:
-    """Breast Cancer Wisconsin completo (569 linhas), com a coluna target."""
-    bruto = load_breast_cancer(as_frame=True)
-    df = bruto.frame.copy()
-    df.columns = [*config.FEATURES, config.ALVO]
-    return df
+    """MAGIC Gamma Telescope sem duplicatas (18.905 de 19.020 linhas), com o alvo 0/1.
+
+    O arquivo da UCI tem 115 linhas repetidas. Elas saem ANTES da divisão: senão a mesma linha
+    poderia cair no treino e no holdout, e o holdout deixaria de ser "dado nunca visto".
+    """
+    df = pd.read_csv(config.DATASET_ORIGINAL, header=None, names=[*config.FEATURES, "rotulo"])
+    df[config.ALVO] = (df["rotulo"] == "g").astype(int)  # g (gamma) = 1, h (hádron) = 0
+    df = df.drop(columns="rotulo").drop_duplicates(subset=config.FEATURES)
+    return df.reset_index(drop=True)
+
+
+def contar_sobreposicao(a: pd.DataFrame, b: pd.DataFrame) -> int:
+    """Quantas linhas de `a` têm os mesmos atributos de alguma linha de `b` (0 = sem vazamento)."""
+    return len(a[config.FEATURES].merge(b[config.FEATURES].drop_duplicates(), how="inner"))
 
 
 def dividir_dataset() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -46,11 +54,15 @@ def dividir_dataset() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 def criar_base() -> None:
     """Grava a base de treino e o holdout fixo em data/raw/."""
     base_treino, base_holdout, _ = dividir_dataset()
+    repetidas = contar_sobreposicao(base_treino, base_holdout)
+    if repetidas:
+        raise SystemExit(f"{repetidas} linhas do holdout também estão no treino: base recusada.")
     config.DADOS_BRUTOS.mkdir(parents=True, exist_ok=True)
     config.DADOS_LOTES.mkdir(parents=True, exist_ok=True)
     base_treino.to_csv(config.BASE_TREINO, index=False)
     base_holdout.to_csv(config.BASE_HOLDOUT, index=False)
     print(f"base_treino: {len(base_treino)} linhas | base_holdout: {len(base_holdout)} linhas")
+    print(f"linhas em comum entre treino e holdout: {repetidas}")
 
 
 def aplicar_drift(df: pd.DataFrame, fator: float) -> pd.DataFrame:
