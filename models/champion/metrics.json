@@ -1,7 +1,7 @@
 {
-  "recall_maligno": 0.972972972972973,
-  "precisao_maligna": 0.9473684210526315,
-  "acuracia": 0.97,
-  "n_amostras": 100,
-  "origem": "treinamento contínuo (CT)"
+  "precisao_maligna": 0.8440944881889764,
+  "recall_maligno": 0.8220858895705522,
+  "acuracia": 0.785,
+  "n_amostras": 1000,
+  "origem": "base_treino.csv"
 }
