@@ -18,13 +18,13 @@ def test_health_responde_ok():
 
 
 def test_predict_devolve_o_formato_combinado(base_holdout):
-    exame = base_holdout[config.FEATURES].iloc[0].tolist()
-    resposta = cliente.post("/predict", json={"atributos": exame})
+    evento = base_holdout[config.FEATURES].iloc[0].tolist()
+    resposta = cliente.post("/predict", json={"atributos": evento})
     assert resposta.status_code == 200
     corpo = resposta.json()
-    assert set(corpo) == {"classe", "probabilidade_maligno", "versao_codigo"}
-    assert corpo["classe"] in {"maligno", "benigno"}
-    assert 0.0 <= corpo["probabilidade_maligno"] <= 1.0
+    assert set(corpo) == {"classe", "probabilidade_gamma", "versao_codigo"}
+    assert corpo["classe"] in {"gamma", "hadron"}
+    assert 0.0 <= corpo["probabilidade_gamma"] <= 1.0
 
 
 def test_predict_rejeita_quantidade_errada_de_atributos():
@@ -32,13 +32,23 @@ def test_predict_rejeita_quantidade_errada_de_atributos():
     assert resposta.status_code == 422
 
 
-def test_predict_acerta_um_caso_maligno_e_um_benigno_claros(base_holdout, campeao):
+@pytest.mark.parametrize("n", [len(config.FEATURES) - 1, len(config.FEATURES) + 1])
+def test_predict_rejeita_um_atributo_a_menos_ou_a_mais(base_holdout, n):
+    """Sem o 422 a API preencheria/cortaria a lista e preveria com colunas trocadas."""
+    linha = base_holdout[config.FEATURES].iloc[0].tolist()
+    atributos = (linha + [0.0])[:n]
+    resposta = cliente.post("/predict", json={"atributos": atributos})
+    assert resposta.status_code == 422
+    assert str(len(config.FEATURES)) in resposta.text
+
+
+def test_predict_acerta_um_caso_gamma_e_um_hadron_claros(base_holdout, campeao):
     """Escolhe os casos mais claros (maior confiança do campeão) de cada classe."""
     X = base_holdout[config.FEATURES]
-    coluna = list(campeao.classes_).index(config.CLASSE_MALIGNA)
-    p_maligno = campeao.predict_proba(X)[:, coluna]
-    i_maligno = int(p_maligno.argmax())
-    i_benigno = int(p_maligno.argmin())
-    for indice, esperado in ((i_maligno, "maligno"), (i_benigno, "benigno")):
+    coluna = list(campeao.classes_).index(config.CLASSE_POSITIVA)
+    p_gamma = campeao.predict_proba(X)[:, coluna]
+    i_gamma = int(p_gamma.argmax())
+    i_hadron = int(p_gamma.argmin())
+    for indice, esperado in ((i_gamma, "gamma"), (i_hadron, "hadron")):
         resposta = cliente.post("/predict", json={"atributos": X.iloc[indice].tolist()})
         assert resposta.json()["classe"] == esperado

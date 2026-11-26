@@ -6,6 +6,7 @@ Uso: python demo/smoke_test.py http://localhost:8000
 import csv
 import json
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -28,7 +29,17 @@ print("health ok | versão:", saude["versao_codigo"])
 
 with open(HOLDOUT, encoding="utf-8") as arquivo:
     linha = next(csv.DictReader(arquivo))
-linha.pop("target")
-predicao = chamar("/predict", {"atributos": [float(v) for v in linha.values()]})
-assert predicao["classe"] in {"maligno", "benigno"}, predicao
+linha.pop("classe")  # o alvo (config.ALVO); o resto são os atributos, na ordem do treino
+atributos = [float(v) for v in linha.values()]
+predicao = chamar("/predict", {"atributos": atributos})
+assert predicao["classe"] in {"gamma", "hadron"}, predicao
+assert 0.0 <= predicao["probabilidade_gamma"] <= 1.0, predicao
 print("predict ok |", predicao)
+
+# contrato: um atributo a menos tem que ser recusado (422), nunca previsto
+try:
+    chamar("/predict", {"atributos": atributos[:-1]})
+    raise AssertionError("a API aceitou uma lista com um atributo a menos")
+except urllib.error.HTTPError as erro:
+    assert erro.code == 422, erro.code
+print("contrato ok | lista com", len(atributos) - 1, "atributos recusada com 422")
