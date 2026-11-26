@@ -12,9 +12,9 @@ from mlops_demo.gate import decidir
 pytestmark = pytest.mark.codigo
 
 
-def test_separar_xy_devolve_30_atributos_e_alvo(base_treino):
+def test_separar_xy_devolve_10_atributos_e_alvo(base_treino):
     X, y = separar_xy(base_treino)
-    assert X.shape == (len(base_treino), 30)
+    assert X.shape == (len(base_treino), len(config.FEATURES))
     assert len(y) == len(base_treino)
 
 
@@ -42,10 +42,10 @@ def test_pipeline_tem_padronizacao_e_classificador(params):
     assert [nome for nome, _ in pipeline.steps] == ["padronizar", "classificador"]
 
 
-def test_metricas_usam_a_classe_maligna_como_positiva():
-    # modelo que chuta tudo como maligno (0): recall 1.0 e precisão = proporção real de malignos
-    y_real = [0, 0, 1, 1]
-    metricas = calcular_metricas(y_real, [0, 0, 0, 0])
+def test_metricas_usam_gamma_como_classe_positiva():
+    # Gamma é o rótulo 1: prever tudo como gamma dá recall 1 e precisão 0,5.
+    y_real = [1, 1, 0, 0]
+    metricas = calcular_metricas(y_real, [1, 1, 1, 1])
     assert metricas["recall_maligno"] == 1.0
     assert metricas["precisao_maligna"] == pytest.approx(0.5)
 
@@ -62,7 +62,7 @@ def test_gate_aprova_candidato_melhor_e_dentro_dos_limiares():
 
 
 def test_gate_reprova_recall_abaixo_do_limiar():
-    assert not decidir(_metricas(0.85, 0.99), _metricas(0.80, 0.99))["aprovado"]
+    assert not decidir(_metricas(0.69, 0.99), _metricas(0.80, 0.99))["aprovado"]
 
 
 def test_gate_reprova_precisao_abaixo_do_limiar():
@@ -70,5 +70,9 @@ def test_gate_reprova_precisao_abaixo_do_limiar():
     assert not decidir(_metricas(1.0, 0.70), _metricas(0.95, 0.95))["aprovado"]
 
 
-def test_gate_reprova_candidato_pior_que_o_campeao():
-    assert not decidir(_metricas(0.92, 0.95), _metricas(0.97, 0.95))["aprovado"]
+def test_gate_aprova_recall_menor_com_precisao_igual_ao_campeao():
+    assert decidir(_metricas(0.92, 0.95), _metricas(0.97, 0.95))["aprovado"]
+
+
+def test_gate_reprova_precisao_menor_que_campeao_mesmo_com_recall_maior():
+    assert not decidir(_metricas(0.99, 0.94), _metricas(0.97, 0.95))["aprovado"]
