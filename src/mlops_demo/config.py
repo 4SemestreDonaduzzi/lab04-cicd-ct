@@ -54,7 +54,9 @@ RECALL_MINIMO = 0.70  # piso: o modelo não pode "fugir" de dizer gamma só para
 TOLERANCIA_CAMPEAO = 0.0  # o candidato não pode ter PRECISÃO menor que o campeão (gate.py, #5)
 PISO_SANIDADE = 0.60  # o campeão não pode colapsar no holdout fixo (abaixo dos dois limiares)
 LIMITE_DRIFT_P = 0.01  # p-valor do teste KS
-MIN_FEATURES_DRIFT = 3  # gatilho do CT: quantos atributos com drift disparam o retreino
+# MAGIC tem 10 atributos. Exigir 2 evita retreino por uma alteração isolada e permite
+# detectar uma recalibração mesmo se só 2 das 3 medidas simuladas passarem no teste KS.
+MIN_FEATURES_DRIFT = 2
 
 
 def carregar_params() -> dict:

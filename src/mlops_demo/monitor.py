@@ -8,12 +8,13 @@ Escreve reports/drift.md e, quando roda no GitHub Actions, publica a saída `ret
 """
 
 import os
+from pathlib import Path
 
 import pandas as pd
 from scipy.stats import ks_2samp
 
 from mlops_demo import config
-from mlops_demo.data import listar_lotes
+from mlops_demo.data import listar_lotes, validar_dataframe
 
 
 def detectar_drift(base: pd.DataFrame, novo: pd.DataFrame) -> pd.DataFrame:
@@ -37,14 +38,22 @@ def deve_retreinar(n_features_drift: int) -> bool:
     return n_features_drift >= config.MIN_FEATURES_DRIFT
 
 
+def _ler_amostra(caminho: Path) -> pd.DataFrame:
+    amostra = pd.read_csv(caminho)
+    problemas = validar_dataframe(amostra)
+    if problemas:
+        raise ValueError(f"{caminho.name}: " + "; ".join(problemas))
+    return amostra
+
+
 def executar() -> bool:
     lotes = listar_lotes()
     if not lotes:
         texto = "## Drift\n\nNenhum lote novo em `data/raw/lotes/`. Nada a comparar.\n"
         n_drift = 0
     else:
-        base = pd.read_csv(config.BASE_TREINO)
-        novo = pd.concat([pd.read_csv(c) for c in lotes], ignore_index=True)
+        base = _ler_amostra(config.BASE_TREINO)
+        novo = pd.concat([_ler_amostra(c) for c in lotes], ignore_index=True)
         tabela = detectar_drift(base, novo)
         n_drift = int(tabela["drift"].sum())
         marcados = tabela[tabela["drift"]].head(10)
@@ -59,7 +68,8 @@ def executar() -> bool:
         )
     retreinar = deve_retreinar(n_drift)
     texto += (
-        f"\nGatilho (>= {config.MIN_FEATURES_DRIFT} atributos com drift): "
+        f"\nGatilho (mínimo de {config.MIN_FEATURES_DRIFT} de {len(config.FEATURES)} atributos "
+        f"com p < {config.LIMITE_DRIFT_P:g} no teste KS): "
         f"{'DISPARADO, retreinar' if retreinar else 'não disparado'}\n"
     )
     config.RELATORIO_DRIFT.parent.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ Uso na linha de comando:
 
 import sys
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -66,11 +67,18 @@ def criar_base() -> None:
 
 
 def aplicar_drift(df: pd.DataFrame, fator: float) -> pd.DataFrame:
-    """Simula equipamento recalibrado: raio e perímetro x fator, área x fator ao quadrado."""
+    """Simula uma mudança de escala nos eixos e na quantidade de luz medida pelo MAGIC."""
+    if not np.isfinite(fator) or fator <= 0:
+        raise ValueError("o fator de drift deve ser positivo e finito")
     saida = df.copy()
+    if fator == 1:
+        return saida
     for coluna in config.COLUNAS_TAMANHO:
-        potencia = 2 if "area" in coluna else 1
-        saida[coluna] = saida[coluna] * (fator**potencia)
+        if coluna == "fSize":
+            # fSize = log10(luz). Multiplicar a luz por k soma log10(k) ao valor registrado.
+            saida[coluna] = df[coluna] + np.log10(fator)
+        else:
+            saida[coluna] = df[coluna] * fator
     return saida
 
 
@@ -93,16 +101,36 @@ def validar_dataframe(df: pd.DataFrame) -> list[str]:
     if list(df.columns) != esperadas:
         faltando = sorted(set(esperadas) - set(df.columns))
         extras = sorted(set(df.columns) - set(esperadas))
+        if not faltando and not extras:
+            return ["esquema diferente do esperado: há colunas repetidas ou fora de ordem"]
         problemas.append(f"esquema diferente do esperado (faltando={faltando}, extras={extras})")
         return problemas
+    if df.empty:
+        return ["arquivo sem linhas de dados"]
     nulos = int(df.isna().sum().sum())
     if nulos:
         problemas.append(f"{nulos} valores nulos")
-    if not df[config.ALVO].isin([0, 1]).all():
-        problemas.append("alvo com valores fora de {0, 1}")
-    negativos = [c for c in config.FEATURES if (df[c] < 0).any()]
-    if negativos:
-        problemas.append(f"valores negativos em {negativos[:3]}")
+    alvo = df[config.ALVO]
+    if not pd.api.types.is_any_real_numeric_dtype(alvo.dtype) or not alvo.isin([0, 1]).all():
+        problemas.append("o alvo deve ser numérico e conter apenas 0 ou 1")
+    # A assimetria e os terceiros momentos têm sinal. fSize já está em escala logarítmica.
+    admitem_negativos = {"fAsym", "fM3Long", "fM3Trans", "fSize"}
+    limites_superiores = {"fConc": 1, "fConc1": 1, "fAlpha": 90}
+    for coluna in config.FEATURES:
+        valores = df[coluna]
+        if not pd.api.types.is_any_real_numeric_dtype(valores.dtype):
+            problemas.append(f"{coluna}: esperado um atributo numérico real")
+            continue
+        if np.isinf(valores).any():
+            problemas.append(f"{coluna}: contém valores infinitos")
+        if coluna not in admitem_negativos and (valores < 0).any():
+            problemas.append(f"{coluna}: valores negativos impossíveis")
+        if coluna in limites_superiores and (valores > limites_superiores[coluna]).any():
+            problemas.append(f"{coluna}: valor acima de {limites_superiores[coluna]}")
+    if not problemas:
+        for menor, maior in (("fWidth", "fLength"), ("fConc1", "fConc")):
+            if (df[menor] > df[maior]).any():
+                problemas.append(f"{menor} não pode ultrapassar {maior}")
     return problemas
 
 
