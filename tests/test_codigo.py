@@ -25,7 +25,7 @@ def test_separar_xy_impoe_a_ordem_das_colunas(base_treino):
 
 
 def test_separar_xy_falha_quando_falta_coluna(base_treino):
-    sem_coluna = base_treino.drop(columns=["mean radius"])
+    sem_coluna = base_treino.drop(columns=[config.FEATURES[0]])
     with pytest.raises(ValueError, match="Colunas ausentes"):
         separar_xy(sem_coluna)
 

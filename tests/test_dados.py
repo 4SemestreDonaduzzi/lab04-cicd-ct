@@ -36,12 +36,13 @@ def test_nao_ha_linhas_duplicadas_na_base_de_treino(base_treino):
 
 def test_validador_detecta_nulos_e_valores_negativos(base_treino):
     corrompido = base_treino.copy()
-    corrompido.loc[0, "mean radius"] = None
-    corrompido.loc[1, "mean area"] = -5.0
+    eixo = config.COLUNAS_TAMANHO[0]
+    corrompido.loc[0, eixo] = None
+    corrompido.loc[1, eixo] = -5.0
     problemas = validar_dataframe(corrompido)
     assert any("nulos" in p for p in problemas)
     assert any("negativos" in p for p in problemas)
 
 
 def test_validador_detecta_esquema_diferente(base_treino):
-    assert validar_dataframe(base_treino.drop(columns=["mean radius"]))
+    assert validar_dataframe(base_treino.drop(columns=[config.FEATURES[0]]))
