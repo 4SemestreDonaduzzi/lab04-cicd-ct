@@ -62,16 +62,18 @@ Os PRs #10 a #13 entraram com o CI vermelho. Isso aconteceu porque os testes do 
 | | O que mostra | Link |
 |---|---|---|
 | E1 | CI verde na `main` depois da adaptação | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45747600570 |
-| E2 | CI vermelho controlado, com o step que falhou | **PREENCHER** |
-| E3 | CT com drift e portão aprovando | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45914351925 (PR do campeão: https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/pull/16) |
-| E4 | CT com o portão reprovando e o campeão sem mudar | **PREENCHER** |
-| E5 | CD verde com a tag `v1.0.0` e imagem no ghcr.io | **PREENCHER** |
+| E2 | CI vermelho controlado: cenário 3 (modelo ruim), falha no step "Testes de modelo" | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45934458519 (PR #18) |
+| E3 | CT com drift e portão aprovando | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45914351925 (PR do campeão: #16) |
+| E4 | CT com o portão reprovando e o campeão sem mudar | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45941109652 (PR #20) |
+| E5 | CD verde com a tag `v1.0.0` e imagem no ghcr.io | https://github.com/4SemestreDonaduzzi/lab04-cicd-ct/actions/runs/45941975254 |
 
-Página do pacote: **PREENCHER**
+Página do pacote (pública): https://github.com/orgs/4SemestreDonaduzzi/packages/container/package/lab04-cicd-ct
+
+Para testar: `docker run -p 8000:8000 ghcr.io/4semestredonaduzzi/lab04-cicd-ct:1.0.0` e depois `python demo/smoke_test.py http://localhost:8000`.
 
 Na E3, o drift apareceu em 3 dos 10 atributos (`fWidth`, `fLength` e `fSize`), o modelo foi retreinado e o portão aprovou o candidato, com precisão de 0,842 contra 0,840 do campeão. Como a `PROMOCAO_AUTOMATICA` está `false`, o CT abriu um PR e uma pessoa fez o merge.
 
-Na E4, a prova de que o campeão não mudou é que o `models/champion/metrics.json` continua com a mesma precisão (0,842) e o CT não abre nenhum PR novo.
+Na E4 usamos o cenário 5, com `class_weight` extremo para a classe gamma. O drift disparou de novo, mas o candidato chegou a recall de 0,999 com precisão de só 0,671, abaixo do mínimo de 0,80 e do campeão (0,842). O portão reprovou e o CT ficou vermelho. A prova de que o campeão não mudou é que o `models/champion/metrics.json` na `main` continua com precisão 0,842, nenhum PR de novo campeão foi aberto e não saiu nenhuma tag nova.
 
 ## 5. Limites e riscos
 
@@ -91,9 +93,9 @@ Na E4, a prova de que o campeão não mudou é que o `models/champion/metrics.js
 
 | Integrante | O que fez | Uso de IA (onde e para quê) |
 |---|---|---|
-| Áquila | Escolha do dataset e contrato (#1), criação do repo e primeiro CI (#2), organização das issues, correção do lote de drift (#15), merge do campeão (#16) e este relatório | **PREENCHER** |
-| Luiz | Dados e contrato no `config.py` (#3, PR #10) e API com smoke test (#6, PR #13) | **PREENCHER** |
-| Rafael | Validação dos dados e drift (#4, PR #11) | **PREENCHER** |
-| Eduardo | Métricas, portão e campeão inicial (#5, PR #12), testes e cenários (#7, PR #14) | Usou IA para adaptar os testes e os cenários ao MAGIC e para conferir os pesos que geram o caso de precisão baixa (PR #14). **Completar o PR #12** |
-| Letícia | Evidências da Parte D (#8) | **PREENCHER** |
-| William | Lote de drift e evidências da Parte D (#8, PR #15) | **PREENCHER** |
+| Áquila | Escolha do dataset e contrato (#1), criação do repo e primeiro CI (#2), organização das issues, correção do lote de drift (#15), merge do campeão (#16), imagem pública e este relatório | Claude Code para escrever as issues, revisar os PRs, corrigir o lote de drift e montar a primeira versão deste relatório. Revisei o texto e as mudanças |
+| Luiz | Dados e contrato no `config.py` (#3, PR #10) e API com smoke test (#6, PR #13) | Claude Code para baixar e analisar o dataset (foi assim que apareceram as 115 duplicatas), escrever as mudanças em `data.py` e `config.py`, adaptar a API, o smoke test e os testes da API, e rodar os testes localmente |
+| Rafael | Validação dos dados e drift (#4, PR #11) | OpenAI Codex para implementar a validação e o drift, escrever e rodar os testes e redigir o registro da issue |
+| Eduardo | Métricas, portão e campeão inicial (#5, PR #12), testes e cenários (#7, PR #14) | IA para adaptar os testes e os cenários das quatro camadas ao MAGIC e conferir os pesos que geram o caso de precisão baixa |
+| Letícia | Evidências E2, E4 e E5 (PRs #18 a #20 e a tag `v1.0.0`) | IA para estruturar e revisar a resposta da pergunta-chave e organizar o checklist de evidências |
+| William | Primeiro lote de drift (PR #15) | Não informou |
